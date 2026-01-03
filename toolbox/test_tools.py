@@ -70,7 +70,7 @@ def _wrap_test_case_fn(test_fn, f=None):
     return wrapper
 
 
-def fn_test(f=None):
+def func_test(f=None):
     def decorator(test_fn):
         return _wrap_test_case_fn(test_fn, f=f)
 
