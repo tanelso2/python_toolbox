@@ -1,11 +1,11 @@
-from toolbox.test_tools import func_test, ExpectedException, FuncParams
+from toolbox.test_tools import func_test_cases, ExpectedException, FuncParams
 
 
 def add(x, y):
     return x + y
 
 
-@func_test()
+@func_test_cases(add)
 def test_add():
     return [
         ((1, 2), 3),
@@ -18,7 +18,7 @@ def divide(x, y):
     return x / y
 
 
-@func_test()
+@func_test_cases(divide)
 def test_divide():
     return [
         ((4, 2), 2),
@@ -32,7 +32,7 @@ def test_divide():
     ]
 
 
-@func_test(f=divide)
+@func_test_cases(divide)
 def test_divide_floats():
     return [
         ((5.0, 2.0), 2.5),

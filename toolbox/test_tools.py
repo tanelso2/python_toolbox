@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from functools import wraps
+from typing import Callable
 
 
 @dataclass
@@ -10,19 +11,20 @@ class FuncParams:
 
 @dataclass
 class ExpectedException:
-    exception: type = Exception
+    exception: type[Exception] = Exception
     message: str | None = None
 
 
-def _get_tested_function(test_fn):
-    name = test_fn.__name__
-    if name.startswith("test_"):
-        name = name[5:]
-    globals = test_fn.__globals__
-    return globals[name]
+type Returns[T] = Callable[..., T]
+
+type FunctionArgs = list | tuple | dict | FuncParams
+type ExpectedOutput[T] = T | ExpectedException
+type TestCase[T] = tuple[FunctionArgs, ExpectedOutput[T]]
+type TestCases[T] = list[TestCase[T]]
+type TestCaseFunction[T] = Callable[[], TestCases[T]]
 
 
-def _apply(f, args):
+def _apply[T](f: Returns[T], args: FunctionArgs) -> T:
     match args:
         case tuple() | list():
             return f(*args)
@@ -34,19 +36,20 @@ def _apply(f, args):
             raise ValueError("Arguments must be tuple, list, dict, or FuncParams")
 
 
-def _run_test_case(f, args, expected):
+def _run_test_case[T](f: Returns[T], args: FunctionArgs, expected: ExpectedOutput[T]):
     match expected:
         case ExpectedException(exception=exc, message=msg):
             try:
                 result = _apply(f, args)
                 assert False, f"Test failed: {args} did not raise {exc}"
-            except exc as e:
-                if msg is not None:
+            except Exception as e:
+                assert isinstance(
+                    e, exc
+                ), f"Test failed: {args} raised {type(e)}, expected {exc}"
+                if msg:
                     assert msg in str(
                         e
                     ), f"Test failed: {args} raised {e}, expected message containing '{msg}'"
-                else:
-                    pass  # Exception raised as expected
         case _:
             # Regular return value
             result = _apply(f, args)
@@ -55,23 +58,14 @@ def _run_test_case(f, args, expected):
             ), f"Test failed: {args} => {result}, expected {expected}"
 
 
-def _run_test_cases(f, test_fn):
-    test_cases = test_fn()
-    for args, expected in test_cases:
-        _run_test_case(f, args, expected)
+def func_test_cases[T](f: Returns[T]) -> Callable:
+    def decorator(test_fn: TestCaseFunction[T]) -> Callable:
+        @wraps(test_fn)
+        def wrapper():
+            test_cases = test_fn()
+            for args, expected in test_cases:
+                _run_test_case(f, args, expected)
 
-
-def _wrap_test_case_fn(test_fn, f=None):
-    @wraps(test_fn)
-    def wrapper():
-        func = f if f is not None else _get_tested_function(test_fn)
-        _run_test_cases(func, test_fn)
-
-    return wrapper
-
-
-def func_test(f=None):
-    def decorator(test_fn):
-        return _wrap_test_case_fn(test_fn, f=f)
+        return wrapper
 
     return decorator
