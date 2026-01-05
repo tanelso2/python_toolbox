@@ -14,7 +14,7 @@ lint:
 	flake8 --show-source --statistics --extend-exclude=.venv --max-line-length 120 .
 
 test:
-	python -m pytest test/
+	python -m pytest tests/
 
 typecheck:
 	mypy .
